@@ -53,10 +53,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.SUNIL1_TOKEN }}
         run: |
+           if [ -z "$GITHUB_TOKEN" ]; then
+           echo "Error: GITHUB_TOKEN is empty. Please check your repository secret VARUN1_TOKEN."
+          exit 1
+          fi
+
           echo "Creating tag ${TAG_NAME}"
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://github-actions:${GITHUB_TOKEN}@github.com/${REPO}.git
+
           git tag -a "${TAG_NAME}" -m "Tag created for ${PR_TITLE}"
           git push origin "${TAG_NAME}"
+
 
       - name: Create Release with Auto Notes
         env:
