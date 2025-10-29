@@ -23,7 +23,7 @@ jobs:
       - name: Checkout Repository
         run: |
           git init
-          git remote add origin https://${{ secrets.SUNIL1_TOKEN }}@github.com/${{ github.repository }}.git
+          git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git
           git fetch origin ${BASE_BRANCH}
           git checkout ${BASE_BRANCH}
 
@@ -36,6 +36,7 @@ jobs:
             exit 0
           fi
           echo "RELEASE_BRANCH=${RELEASE_BRANCH}" >> $GITHUB_ENV
+          echo "Detected Release Branch: ${RELEASE_BRANCH}"
 
       - name: Generate Tag Name
         run: |
@@ -53,16 +54,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.SUNIL1_TOKEN }}
         run: |
           echo "Creating tag ${TAG_NAME}"
-          #git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
-          #git remote set-url origin https://${{ github.actor }}:${{ secrets.SUNIL1_TOKEN }}@github.com/${REPO}.git
-          #git remote set-url origin https://${{ secrets.SUNIL1_TOKEN }}@github.com/${REPO}.git
-          git remote set-url origin https://${{ secrets.SUNIL1_TOKEN }}@github.com/${{ github.repository }}.git
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git
           git tag -a "${TAG_NAME}" -m "Tag created for ${PR_TITLE}"
           git push origin "${TAG_NAME}"
 
       - name: Create Release with Auto Notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.SUNIL1_TOKEN }}
         run: |
-          echo "Creating GitHub Release for ${TAG_NAME} on branch test/PROD"
+          echo "Creating GitHub Release for ${TAG_NAME}"
           API_URL="https://api.github.com/repos/${REPO}/releases"
           PAYLOAD=$(jq -n \
             --arg tag_name "$TAG_NAME" \
@@ -70,6 +70,7 @@ jobs:
             --arg target_commitish "test/PROD" \
             '{ tag_name: $tag_name, name: $name, target_commitish: $target_commitish, generate_release_notes: true }')
 
+          echo "Payload: $PAYLOAD"
           curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" \
                -H "Accept: application/vnd.github+json" \
                -d "$PAYLOAD" "$API_URL"
