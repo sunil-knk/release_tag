@@ -55,7 +55,7 @@ jobs:
           echo "Creating tag ${TAG_NAME}"
           #git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
           #git remote set-url origin https://${{ github.actor }}:${{ secrets.SUNIL1_TOKEN }}@github.com/${REPO}.git
-          git remote add origin https://${{ secrets.SUNIL1_TOKEN }}@github.com/${REPO}.git
+          git remote set-url origin https://${{ secrets.SUNIL1_TOKEN }}@github.com/${REPO}.git
           git tag -a "${TAG_NAME}" -m "Tag created for ${PR_TITLE}"
           git push origin "${TAG_NAME}"
 
