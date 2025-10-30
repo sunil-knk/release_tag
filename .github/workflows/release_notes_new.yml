@@ -97,8 +97,9 @@ jobs:
               target_commitish: $target_commitish,
               generate_release_notes: true,
               body: $body,
-              draft: true,
-              prerelease: false
+              draft: false,
+              prerelease: false,
+              generate_release_notes: true
             }')
 
           RESPONSE=$(curl -s -X POST \
