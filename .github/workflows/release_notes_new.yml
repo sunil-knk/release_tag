@@ -21,7 +21,7 @@ jobs:
   generate-release-notes:
     runs-on: ubuntu-latest
     env:
-      GITHUB_TOKEN: ${{ secrets.SUNIL1_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.SUNIL2_TOKEN }}
       REPO: ${{ github.repository }}
       TAG_NAME: ${{ github.event.inputs.TAG_NAME }}
       TARGET_BRANCH: ${{ github.event.inputs.TARGET_BRANCH }}
@@ -60,7 +60,7 @@ jobs:
 
       - name: Create tag if not exists
         env:
-          GITHUB_TOKEN: ${{ secrets.SUNIL1_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SUNIL2_TOKEN }}
           REPO: ${{ github.repository }}
           TAG_NAME: ${{ github.event.inputs.TAG_NAME }}
         run: |
