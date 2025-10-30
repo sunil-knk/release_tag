@@ -58,6 +58,10 @@ jobs:
           cat release_notes.md
 
       - name: Create tag if not exists
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG_NAME: ${{ github.event.inputs.TAG_NAME }}
         run: |
           echo "Checking if tag $TAG_NAME exists..."
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
