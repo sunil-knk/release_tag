@@ -1,0 +1,105 @@
+name: Auto Generate Release Notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      TAG_NAME:
+        description: "New tag name (e.g. sprint_20)"
+        required: true
+        default: "sprint_20"
+      TARGET_BRANCH:
+        description: "Target branch to generate release notes from"
+        required: true
+        default: "main"
+      RELEASE_TITLE:
+        description: "Title for the release"
+        required: true
+        default: "Sprint 20 Release"
+
+jobs:
+  generate-release-notes:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.SUNIL1_TOKEN }}
+      REPO: ${{ github.repository }}
+      TAG_NAME: ${{ github.event.inputs.TAG_NAME }}
+      TARGET_BRANCH: ${{ github.event.inputs.TARGET_BRANCH }}
+      RELEASE_TITLE: ${{ github.event.inputs.RELEASE_TITLE }}
+
+    steps:
+      - name: Checkout repository
+        run: |
+          echo "Cloning $REPO..."
+          git init
+          git remote add origin https://github.com/${REPO}.git
+          git fetch origin --tags
+          git fetch origin $TARGET_BRANCH
+          git checkout $TARGET_BRANCH
+
+      - name: Get previous tag
+        id: prev_tag
+        run: |
+          echo "Finding previous tag..."
+          PREV_TAG=$(git tag --sort=-creatordate | head -n 2 | tail -n 1)
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found. Generating from start of branch."
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "Previous tag is: $PREV_TAG"
+          echo "PREV_TAG=$PREV_TAG" >> $GITHUB_ENV
+
+      - name: Generate commit list between tags
+        run: |
+          echo "Generating changelog between $PREV_TAG and $TAG_NAME"
+          git log $PREV_TAG..$TARGET_BRANCH --pretty=format:"- %s (%an)" > release_notes.md
+          echo "" >> release_notes.md
+          echo "Tag range: $PREV_TAG → $TAG_NAME" >> release_notes.md
+          echo "Generated release notes preview:"
+          cat release_notes.md
+
+      - name: Create tag if not exists
+        run: |
+          echo "Checking if tag $TAG_NAME exists..."
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME already exists, skipping creation."
+          else
+            echo "Creating new tag: $TAG_NAME"
+            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+            git push origin "$TAG_NAME"
+          fi
+
+      - name: Create release via GitHub API
+        run: |
+          echo "Creating release for $TAG_NAME on branch $TARGET_BRANCH"
+          BODY=$(cat release_notes.md | jq -Rs .)
+
+          PAYLOAD=$(jq -n \
+            --arg tag_name "$TAG_NAME" \
+            --arg name "$RELEASE_TITLE" \
+            --arg target_commitish "$TARGET_BRANCH" \
+            --arg body "$BODY" \
+            '{
+              tag_name: $tag_name,
+              name: $name,
+              target_commitish: $target_commitish,
+              generate_release_notes: true,
+              body: $body,
+              draft: true,
+              prerelease: false
+            }')
+
+          RESPONSE=$(curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "$PAYLOAD" \
+            "https://api.github.com/repos/${REPO}/releases")
+
+          echo "GitHub API response:"
+          echo "$RESPONSE"
+
+          if echo "$RESPONSE" | grep -q '"message": "Validation Failed"'; then
+            echo "Release creation failed. Check payload and tag."
+            exit 1
+          else
+            echo "✅ Release created successfully for $TAG_NAME."
+          fi
