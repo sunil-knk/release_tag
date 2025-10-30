@@ -68,7 +68,8 @@ jobs:
           git config --global user.name "github-actions[bot]"
 
           # Authenticate using the GitHub token
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git"
+          #git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}"
+          git remote set-url origin https://${{ github.actor }}:${{ secrets.SUNIL1_TOKEN }}@github.com/${REPO}.git
           git fetch origin --tags
           
           if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
