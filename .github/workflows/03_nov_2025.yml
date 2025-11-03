@@ -1,0 +1,93 @@
+name: Auto Generate Release Notes
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  generate-release-notes:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, 'Sprint Release:')
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.SUNIL2_TOKEN }}
+      REPO: ${{ github.repository }}
+      TARGET_BRANCH: main
+      TAG_NAME: sprint_${{ github.run_number }}
+      RELEASE_TITLE: "${{ github.event.pull_request.title }}"
+
+    steps:
+      - name: Checkout repository
+        run: |
+          echo "Cloning repository $REPO..."
+          git init
+          git remote add origin https://github.com/${REPO}.git
+          git fetch origin --tags
+          git fetch origin $TARGET_BRANCH
+          git checkout $TARGET_BRANCH
+
+      - name: Identify previous tag
+        id: prev_tag
+        run: |
+          echo "Finding previous tag on $TARGET_BRANCH..."
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found. Using first commit."
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "PREV_TAG=$PREV_TAG" >> $GITHUB_ENV
+          echo "Previous tag identified: $PREV_TAG"
+
+      - name: Generate release notes
+        run: |
+          echo "Generating changelog between $PREV_TAG and latest commits..."
+          git log $PREV_TAG..$TARGET_BRANCH --pretty=format:"- %s (%an)" > release_notes.md
+          echo "" >> release_notes.md
+          echo "Generated from range: $PREV_TAG → $TARGET_BRANCH" >> release_notes.md
+          echo "Sample release notes:"
+          cat release_notes.md
+
+      - name: Create new tag
+        run: |
+          echo "Creating new tag: $TAG_NAME"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+          git push origin "$TAG_NAME"
+
+      - name: Create draft release
+        run: |
+          echo "Creating GitHub release for $TAG_NAME..."
+          BODY=$(cat release_notes.md | jq -Rs .)
+          PAYLOAD=$(jq -n \
+            --arg tag_name "$TAG_NAME" \
+            --arg name "$RELEASE_TITLE" \
+            --arg target_commitish "$TARGET_BRANCH" \
+            --arg body "$BODY" \
+            '{
+              tag_name: $tag_name,
+              name: $name,
+              target_commitish: $target_commitish,
+              body: $body,
+              draft: true,
+              prerelease: false
+            }')
+
+          RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "$PAYLOAD" \
+            "https://api.github.com/repos/${REPO}/releases")
+
+          echo "API Response:"
+          echo "$RESPONSE"
+          if echo "$RESPONSE" | grep -q '"message": "Validation Failed"'; then
+            echo "❌ Release creation failed. Check payload and tag."
+            exit 1
+          else
+            echo "✅ Draft release created successfully for tag $TAG_NAME."
+          fi
