@@ -18,7 +18,7 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git clone -b prod https://${{ secrets.SUNIL2_TOKEN }}@github.com/${{ github.repository }}.git .
+          git clone -b main https://${{ secrets.SUNIL2_TOKEN }}@github.com/${{ github.repository }}.git .
           git fetch --tags
           git checkout main
           git pull origin main
