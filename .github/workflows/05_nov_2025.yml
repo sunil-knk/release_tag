@@ -96,3 +96,6 @@ jobs:
             RELEASE_URL=$(echo "$RESPONSE_BODY" | grep -o '"html_url":[^,]*' | cut -d'"' -f4)
             echo "Release created successfully: $RELEASE_URL"
           fi
+
+
+
